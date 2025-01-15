@@ -1,20 +1,32 @@
+/*** includes ***/
+
 #include <unistd.h>
 #include <termios.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <errno.h>
 
+/*** data ***/
 
 struct termios orig_termios;
 
+/*** terminal ***/
+
+void die(const char *s) {
+    perror(s);
+    exit(1);
+}
+
 
 void disableRawMode() {
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
+        die("tcsetattr");
 }
 
 
 void enableRawMode() {
-    tcgetattr(STDIN_FILENO, &orig_termios);
+    if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die("tcgetattr");
     atexit(disableRawMode);         // disableRawMode will get called when program exits
 
 
@@ -63,8 +75,11 @@ void enableRawMode() {
 
     // setting attributes to raw
     // TCSAFLUSH waits for all pending output to be written to the terminal, and also discards any input that hasn't been read.
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
 }
+
+
+/*** init ***/
 
 int main() {
     enableRawMode();
@@ -72,7 +87,7 @@ int main() {
     // reading 1 byte from stdin
     while (1) {
         char c = '\0';         // current char
-        read(STDIN_FILENO, &c, 1);
+        if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) die("read");
 
         // iscntrl() -> ctype.h, these are control character, and i don't want to print them, I only need their ASCII code
 
